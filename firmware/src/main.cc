@@ -209,6 +209,15 @@ void pair_new_device() {
 void clear_bonds() {
 }
 
+void get_bluetooth_device(uint32_t index, bluetooth_device_info_t* info) {
+    (void) index;
+    memset(info, 0, sizeof(*info));
+}
+
+void forget_bluetooth_device(const bluetooth_address_t* address) {
+    (void) address;
+}
+
 void my_mutexes_init() {
     for (int i = 0; i < (int8_t) MutexId::N; i++) {
         mutex_init(&mutexes[i]);
