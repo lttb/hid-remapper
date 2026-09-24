@@ -296,6 +296,21 @@
                     </div>
                 </div>
 
+                <div id="bluetooth_devices_section" class="d-none mt-5">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h5 class="mb-0">Bluetooth devices</h5>
+                        <button id="refresh_bluetooth_devices" type="button" class="btn btn-outline-primary btn-sm">Refresh</button>
+                    </div>
+                    <p class="small text-muted mb-2">Devices remembered by the Bluetooth HID receiver. Port is the source port used in mappings.</p>
+                    <div class="row small text-muted pb-2">
+                        <div class="col-2">Status</div>
+                        <div class="col-6">Device</div>
+                        <div class="col-4"></div>
+                    </div>
+                    <div id="bluetooth_devices"></div>
+                    <div id="bluetooth_devices_empty" class="text-muted py-3 d-none">No paired Bluetooth HID devices.</div>
+                </div>
+
             </div>
 
             <div class="tab-pane" id="nav-monitor" role="tabpanel" tabindex="0">
