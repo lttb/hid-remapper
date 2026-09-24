@@ -934,6 +934,10 @@ uint16_t handle_get_report1(uint8_t report_id, uint8_t* buffer, uint16_t reqlen)
                 my_mutex_exit(MutexId::QUIRKS);
                 break;
             }
+            case ConfigCommand::GET_BLUETOOTH_DEVICE: {
+                get_bluetooth_device(requested_index, (bluetooth_device_info_t*) config_buffer);
+                break;
+            }
             case ConfigCommand::PERSIST_CONFIG: {
                 persist_config_response_t* returned = (persist_config_response_t*) config_buffer;
                 if (persist_config_return_code == PersistConfigReturnCode::UNKNOWN) {
@@ -999,7 +1003,8 @@ void handle_set_report1(uint8_t report_id, uint8_t const* buffer, uint16_t bufsi
                 case ConfigCommand::GET_MAPPING:
                 case ConfigCommand::GET_OUR_USAGES:
                 case ConfigCommand::GET_THEIR_USAGES:
-                case ConfigCommand::GET_QUIRK: {
+                case ConfigCommand::GET_QUIRK:
+                case ConfigCommand::GET_BLUETOOTH_DEVICE: {
                     get_indexed_t* get_indexed = (get_indexed_t*) config_buffer->data;
                     requested_index = get_indexed->requested_index;
                     break;
@@ -1022,6 +1027,10 @@ void handle_set_report1(uint8_t report_id, uint8_t const* buffer, uint16_t bufsi
                 case ConfigCommand::CLEAR_BONDS:
                     clear_bonds();
                     break;
+                case ConfigCommand::FORGET_BLUETOOTH_DEVICE: {
+                    forget_bluetooth_device((const bluetooth_address_t*) config_buffer->data);
+                    break;
+                }
                 case ConfigCommand::FLASH_B_SIDE:
                     flash_b_side();
                     break;
