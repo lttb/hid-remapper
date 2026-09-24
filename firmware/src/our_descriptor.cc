@@ -128,13 +128,17 @@ const uint8_t our_report_descriptor_kb_mouse[] = {
     0x09, 0xE2,                //   Usage (Mute)
     0x09, 0xE9,                //   Usage (Volume Increment)
     0x09, 0xEA,                //   Usage (Volume Decrement)
+    0x09, 0x6F,                //   Usage (Brightness Increment)
+    0x09, 0x70,                //   Usage (Brightness Decrement)
     0x75, 0x01,                //   Report Size (1)
-    0x95, 0x07,                //   Report Count (7)
+    0x95, 0x09,                //   Report Count (9)
     0x81, 0x02,                //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
     0x05, 0x0B,                //   Usage Page (Telephony)
     0x09, 0x2F,                //   Usage (Phone Mute)
     0x95, 0x01,                //   Report Count (1)
     0x81, 0x02,                //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x95, 0x06,                //   Report Count (6)
+    0x81, 0x03,                //   Input (Const,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
     0xC0,                      // End Collection
 };
 
@@ -257,13 +261,17 @@ const uint8_t our_report_descriptor_absolute[] = {
     0x09, 0xE2,                //   Usage (Mute)
     0x09, 0xE9,                //   Usage (Volume Increment)
     0x09, 0xEA,                //   Usage (Volume Decrement)
+    0x09, 0x6F,                //   Usage (Brightness Increment)
+    0x09, 0x70,                //   Usage (Brightness Decrement)
     0x75, 0x01,                //   Report Size (1)
-    0x95, 0x07,                //   Report Count (7)
+    0x95, 0x09,                //   Report Count (9)
     0x81, 0x02,                //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
     0x05, 0x0B,                //   Usage Page (Telephony)
     0x09, 0x2F,                //   Usage (Phone Mute)
     0x95, 0x01,                //   Report Count (1)
     0x81, 0x02,                //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x95, 0x06,                //   Report Count (6)
+    0x81, 0x03,                //   Input (Const,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
     0xC0,                      // End Collection
 };
 
