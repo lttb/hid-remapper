@@ -32,6 +32,8 @@ enum class ConfigCommand : int8_t {
     CLEAR_QUIRKS = 23,
     ADD_QUIRK = 24,
     GET_QUIRK = 25,
+    GET_BLUETOOTH_DEVICE = 26,
+    FORGET_BLUETOOTH_DEVICE = 27,
 };
 
 struct usage_def_t {
@@ -433,5 +435,23 @@ struct __attribute__((packed)) monitor_report_t {
 struct __attribute__((packed)) uint16_val_t {
     uint16_t val;
 };
+
+#define BLUETOOTH_DEVICE_NAME_SIZE 18
+
+struct __attribute__((packed)) bluetooth_address_t {
+    uint8_t type;
+    uint8_t address[6];
+};
+
+struct __attribute__((packed)) bluetooth_device_info_t {
+    uint8_t valid;
+    uint8_t connected;
+    uint8_t port;
+    uint8_t address_type;
+    uint8_t address[6];
+    char name[BLUETOOTH_DEVICE_NAME_SIZE];
+};
+
+static_assert(sizeof(bluetooth_device_info_t) == 28, "Bluetooth device info must fit in a config feature report");
 
 #endif
