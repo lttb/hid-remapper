@@ -60,6 +60,8 @@ const SET_MONITOR_ENABLED = 22;
 const CLEAR_QUIRKS = 23;
 const ADD_QUIRK = 24;
 const GET_QUIRK = 25;
+const GET_BLUETOOTH_DEVICE = 26;
+const FORGET_BLUETOOTH_DEVICE = 27;
 
 const PERSIST_CONFIG_SUCCESS = 1;
 const PERSIST_CONFIG_CONFIG_TOO_BIG = 2;
@@ -190,6 +192,12 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("flash_b_side").addEventListener("click", flash_b_side);
     document.getElementById("pair_new_device").addEventListener("click", pair_new_device);
     document.getElementById("clear_bonds").addEventListener("click", clear_bonds);
+    document.getElementById("refresh_bluetooth_devices").addEventListener("click", load_bluetooth_devices);
+    document.getElementById("nav-actions-tab").addEventListener("shown.bs.tab", () => {
+        if (!document.getElementById("bluetooth_devices_section").classList.contains("d-none")) {
+            load_bluetooth_devices();
+        }
+    });
     document.getElementById("monitor_clear").addEventListener("click", monitor_clear);
     document.getElementById("file_input").addEventListener("change", file_uploaded);
     document.getElementById("add_quirk").addEventListener("click", add_empty_quirk);
@@ -258,7 +266,11 @@ async function open_device() {
                 await set_monitor_enabled(monitor_enabled);
                 await get_usages_from_device();
                 setup_usages_modals();
-                bluetooth_buttons_set_visibility(device.productName.includes("Bluetooth"));
+                const is_bluetooth = device.productName.includes("Bluetooth");
+                bluetooth_buttons_set_visibility(is_bluetooth);
+                if (is_bluetooth) {
+                    await load_bluetooth_devices();
+                }
             }
         }
     } catch (e) {
@@ -864,6 +876,114 @@ async function pair_new_device() {
 
 async function clear_bonds() {
     await send_feature_command(CLEAR_BONDS);
+    await new Promise(resolve => setTimeout(resolve, 250));
+    await load_bluetooth_devices();
+}
+
+function bluetooth_address_to_string(address) {
+    return Array.from(address).reverse().map(x => x.toString(16).padStart(2, '0')).join(':').toUpperCase();
+}
+
+function bluetooth_name_from_bytes(bytes) {
+    const end = bytes.indexOf(0);
+    const trimmed = end >= 0 ? bytes.slice(0, end) : bytes;
+    if (trimmed.length == 0) {
+        return '';
+    }
+    return new TextDecoder().decode(Uint8Array.from(trimmed));
+}
+
+function render_bluetooth_device(info) {
+    const container = document.getElementById("bluetooth_devices");
+    const row = document.createElement("div");
+    row.className = "row align-items-center py-2 border-top";
+
+    const status_col = document.createElement("div");
+    status_col.className = "col-2";
+    const status = document.createElement("span");
+    status.className = "badge " + (info.connected ? "bg-success" : "bg-secondary");
+    status.innerText = info.connected ? "Connected" : "Paired";
+    status_col.appendChild(status);
+
+    const device_col = document.createElement("div");
+    device_col.className = "col-6";
+    const name = document.createElement("div");
+    name.className = "fw-semibold";
+    name.innerText = info.name || ("Bluetooth device " + info.port);
+    const detail = document.createElement("div");
+    detail.className = "small text-muted";
+    detail.innerText = "Port " + info.port + " · " + bluetooth_address_to_string(info.address);
+    device_col.appendChild(name);
+    device_col.appendChild(detail);
+
+    const action_col = document.createElement("div");
+    action_col.className = "col-4 text-end";
+    const forget = document.createElement("button");
+    forget.type = "button";
+    forget.className = "btn btn-outline-danger btn-sm";
+    forget.innerText = "Forget";
+    forget.addEventListener("click", async () => {
+        forget.disabled = true;
+        try {
+            const fields = [[UINT8, info.address_type]];
+            for (const byte of info.address) {
+                fields.push([UINT8, byte]);
+            }
+            await send_feature_command(FORGET_BLUETOOTH_DEVICE, fields);
+            await new Promise(resolve => setTimeout(resolve, 250));
+            await load_bluetooth_devices();
+        } catch (e) {
+            display_error(e);
+            forget.disabled = false;
+        }
+    });
+    action_col.appendChild(forget);
+
+    row.appendChild(status_col);
+    row.appendChild(device_col);
+    row.appendChild(action_col);
+    container.appendChild(row);
+}
+
+async function load_bluetooth_devices() {
+    if (device == null || !device.productName.includes("Bluetooth")) {
+        return;
+    }
+
+    const container = document.getElementById("bluetooth_devices");
+    const empty = document.getElementById("bluetooth_devices_empty");
+    const refresh = document.getElementById("refresh_bluetooth_devices");
+    container.replaceChildren();
+    empty.classList.add("d-none");
+    refresh.disabled = true;
+
+    try {
+        let count = 0;
+        for (let i = 0; i < 32; i++) {
+            await send_feature_command(GET_BLUETOOTH_DEVICE, [[UINT32, i]]);
+            const fields = await read_config_feature(Array(28).fill(UINT8));
+            if (fields[0] == 0) {
+                break;
+            }
+
+            const info = {
+                valid: fields[0] != 0,
+                connected: fields[1] != 0,
+                port: fields[2],
+                address_type: fields[3],
+                address: fields.slice(4, 10),
+                name: bluetooth_name_from_bytes(fields.slice(10, 28)),
+            };
+            render_bluetooth_device(info);
+            count++;
+        }
+
+        empty.classList.toggle("d-none", count != 0);
+    } catch (e) {
+        display_error(e);
+    } finally {
+        refresh.disabled = false;
+    }
 }
 
 function file_uploaded() {
@@ -1484,11 +1604,13 @@ function device_buttons_set_disabled_state(state) {
     document.getElementById("flash_b_side").disabled = state;
     document.getElementById("pair_new_device").disabled = state;
     document.getElementById("clear_bonds").disabled = state;
+    document.getElementById("refresh_bluetooth_devices").disabled = state;
 }
 
 function bluetooth_buttons_set_visibility(visible) {
     document.getElementById("pair_new_device_container").classList.toggle("d-none", !visible);
     document.getElementById("clear_bonds_container").classList.toggle("d-none", !visible);
+    document.getElementById("bluetooth_devices_section").classList.toggle("d-none", !visible);
     document.getElementById("flash_b_side_container").classList.toggle("d-none", visible);
 }
 
