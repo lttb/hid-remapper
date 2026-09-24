@@ -189,6 +189,8 @@ const usages = {
         "0x00080004": { 'name': 'Compose LED', 'class': 'keyboard' },
         "0x00080005": { 'name': 'Kana LED', 'class': 'keyboard' },
 
+        "0x000c006f": { 'name': 'Brightness up', 'class': 'media' },
+        "0x000c0070": { 'name': 'Brightness down', 'class': 'media' },
         "0x000c00e9": { 'name': 'Volume up', 'class': 'media' },
         "0x000c00ea": { 'name': 'Volume down', 'class': 'media' },
         "0x000c00e2": { 'name': 'Mute', 'class': 'media' },
@@ -417,6 +419,8 @@ const usages = {
         "0x00080004": { 'name': 'Compose LED', 'class': 'keyboard' },
         "0x00080005": { 'name': 'Kana LED', 'class': 'keyboard' },
 
+        "0x000c006f": { 'name': 'Brightness up', 'class': 'media' },
+        "0x000c0070": { 'name': 'Brightness down', 'class': 'media' },
         "0x000c00e9": { 'name': 'Volume up', 'class': 'media' },
         "0x000c00ea": { 'name': 'Volume down', 'class': 'media' },
         "0x000c00e2": { 'name': 'Mute', 'class': 'media' },
