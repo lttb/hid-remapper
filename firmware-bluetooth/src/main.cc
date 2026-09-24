@@ -112,6 +112,95 @@ static const struct gpio_dt_spec led1 = GPIO_DT_SPEC_GET(LED1_NODE, gpios);
 static bool scanning = false;
 static bool peers_only = true;
 
+struct cached_device_name_t {
+    bool used;
+    bt_addr_le_t addr;
+    char name[BLUETOOTH_DEVICE_NAME_SIZE];
+};
+
+static cached_device_name_t cached_device_names[CONFIG_BT_MAX_PAIRED];
+
+static const char* cached_device_name(const bt_addr_le_t* addr) {
+    for (auto const& entry : cached_device_names) {
+        if (entry.used && bt_addr_le_eq(&entry.addr, addr)) {
+            return entry.name;
+        }
+    }
+    return nullptr;
+}
+
+static void cache_device_name(const bt_addr_le_t* addr, const char* name) {
+    if ((name == nullptr) || (name[0] == '\0')) {
+        return;
+    }
+
+    cached_device_name_t* target = nullptr;
+    for (auto& entry : cached_device_names) {
+        if (entry.used && bt_addr_le_eq(&entry.addr, addr)) {
+            target = &entry;
+            break;
+        }
+        if (!entry.used && target == nullptr) {
+            target = &entry;
+        }
+    }
+
+    if (target == nullptr) {
+        return;
+    }
+
+    target->used = true;
+    bt_addr_le_copy(&target->addr, addr);
+    strncpy(target->name, name, sizeof(target->name) - 1);
+    target->name[sizeof(target->name) - 1] = '\0';
+}
+
+static void forget_cached_device_name(const bt_addr_le_t* addr) {
+    for (auto& entry : cached_device_names) {
+        if (entry.used && bt_addr_le_eq(&entry.addr, addr)) {
+            memset(&entry, 0, sizeof(entry));
+            return;
+        }
+    }
+}
+
+struct advertised_name_t {
+    char name[BLUETOOTH_DEVICE_NAME_SIZE];
+    bool found;
+};
+
+static bool advertised_name_cb(struct bt_data* data, void* user_data) {
+    auto* result = (advertised_name_t*) user_data;
+
+    if ((data->type != BT_DATA_NAME_COMPLETE) && (data->type != BT_DATA_NAME_SHORTENED)) {
+        return true;
+    }
+
+    size_t len = data->data_len;
+    if (len >= sizeof(result->name)) {
+        len = sizeof(result->name) - 1;
+    }
+    memcpy(result->name, data->data, len);
+    result->name[len] = '\0';
+    result->found = true;
+
+    return data->type != BT_DATA_NAME_COMPLETE;
+}
+
+static void cache_name_from_scan(struct bt_scan_device_info* device_info, struct bt_conn* conn) {
+    if ((device_info == nullptr) || (device_info->adv_data == nullptr) || (conn == nullptr)) {
+        return;
+    }
+
+    advertised_name_t result = {};
+    struct net_buf_simple adv_data = *device_info->adv_data;
+    bt_data_parse(&adv_data, advertised_name_cb, &result);
+
+    if (result.found) {
+        cache_device_name(bt_conn_get_dst(conn), result.name);
+    }
+}
+
 static struct bt_le_conn_param* conn_param = BT_LE_CONN_PARAM(6, 6, 44, 400);
 
 static void activity_led_off_work_fn(struct k_work* work) {
@@ -265,6 +354,7 @@ static void disconnect_conn(struct bt_conn* conn, void* data) {
 static void clear_bonds_work_fn(struct k_work* work) {
     if (CHK(bt_unpair(BT_ID_DEFAULT, &BT_ADDR_LE_ANY_))) {
         LOG_INF("Bonds cleared.");
+        memset(cached_device_names, 0, sizeof(cached_device_names));
     } else {
         return;
     }
@@ -293,6 +383,7 @@ static void scan_connecting_error(struct bt_scan_device_info* device_info) {
 }
 
 static void scan_connecting(struct bt_scan_device_info* device_info, struct bt_conn* conn) {
+    cache_name_from_scan(device_info, conn);
     LOG_INF("");
 }
 
@@ -860,6 +951,78 @@ void pair_new_device() {
 
 void clear_bonds() {
     k_work_submit(&clear_bonds_work);
+}
+
+struct connection_lookup_t {
+    bt_addr_le_t addr;
+    bool connected;
+};
+
+static void find_connection_cb(struct bt_conn* conn, void* user_data) {
+    auto* lookup = (connection_lookup_t*) user_data;
+    if (bt_addr_le_eq(bt_conn_get_dst(conn), &lookup->addr)) {
+        lookup->connected = true;
+    }
+}
+
+struct bond_lookup_t {
+    uint32_t requested_index;
+    uint32_t current_index;
+    bluetooth_device_info_t* result;
+};
+
+static void get_bluetooth_device_cb(const struct bt_bond_info* info, void* user_data) {
+    auto* lookup = (bond_lookup_t*) user_data;
+
+    if (lookup->current_index == lookup->requested_index) {
+        bluetooth_device_info_t* result = lookup->result;
+        result->valid = 1;
+        result->port = lookup->current_index + 1;
+        result->address_type = info->addr.type;
+        memcpy(result->address, info->addr.a.val, sizeof(result->address));
+
+        connection_lookup_t connection_lookup = {
+            .addr = info->addr,
+            .connected = false,
+        };
+        bt_conn_foreach(BT_CONN_TYPE_LE, find_connection_cb, &connection_lookup);
+        result->connected = connection_lookup.connected ? 1 : 0;
+
+        const char* name = cached_device_name(&info->addr);
+        if (name != nullptr) {
+            strncpy(result->name, name, sizeof(result->name) - 1);
+            result->name[sizeof(result->name) - 1] = '\0';
+        }
+    }
+
+    lookup->current_index++;
+}
+
+void get_bluetooth_device(uint32_t index, bluetooth_device_info_t* info) {
+    memset(info, 0, sizeof(*info));
+
+    bond_lookup_t lookup = {
+        .requested_index = index,
+        .current_index = 0,
+        .result = info,
+    };
+    bt_foreach_bond(BT_ID_DEFAULT, get_bluetooth_device_cb, &lookup);
+}
+
+void forget_bluetooth_device(const bluetooth_address_t* address) {
+    if (address == nullptr) {
+        return;
+    }
+
+    bt_addr_le_t addr = {};
+    addr.type = address->type;
+    memcpy(addr.a.val, address->address, sizeof(address->address));
+
+    if (CHK(bt_unpair(BT_ID_DEFAULT, &addr))) {
+        forget_cached_device_name(&addr);
+        peers_only = true;
+        k_work_reschedule(&scan_start_work, K_MSEC(SCAN_DELAY_MS));
+    }
 }
 
 void my_mutexes_init() {
