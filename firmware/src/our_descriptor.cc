@@ -7,7 +7,7 @@
 
 const uint8_t REPORT_ID_MOUSE = 1;
 const uint8_t REPORT_ID_KEYBOARD = 2;
-const uint8_t REPORT_ID_CONSUMER = 3;
+const uint8_t REPORT_ID_CONSUMER = 3;  // Includes media and display brightness controls.
 
 const uint8_t our_report_descriptor_kb_mouse[] = {
     0x05, 0x01,                // Usage Page (Generic Desktop Ctrls)
