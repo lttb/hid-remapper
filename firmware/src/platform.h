@@ -9,6 +9,8 @@ void do_persist_config(uint8_t* buffer);
 void reset_to_bootloader();
 void pair_new_device();
 void clear_bonds();
+void get_bluetooth_device(uint32_t index, bluetooth_device_info_t* info);
+void forget_bluetooth_device(const bluetooth_address_t* address);
 void flash_b_side();
 
 void my_mutexes_init();
